@@ -5,6 +5,8 @@ const App = () => {
   const [n, setN] = useState(null);
   const [sequence, setSequence] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [captchaVisible, setCaptchaVisible] = useState(false); // Pour afficher/masquer le captcha
+  const [captchaLoaded, setCaptchaLoaded] = useState(false); // Pour savoir si le script est chargé
 
   // Charger dynamiquement le script AWS WAF
   useEffect(() => {
@@ -12,6 +14,18 @@ const App = () => {
     script.src =
       "https://b82b1763d1c3.eu-west-3.captcha-sdk.awswaf.com/b82b1763d1c3/jsapi.js";
     script.defer = true;
+
+    // Ajouter un gestionnaire d'événements pour le chargement du script
+    script.onload = () => {
+      console.log("Script AWS WAF chargé avec succès.");
+      setCaptchaLoaded(true);
+    };
+
+    // Ajouter un gestionnaire d'événements pour les erreurs de chargement
+    script.onerror = () => {
+      console.error("Échec du chargement du script AWS WAF.");
+    };
+
     document.body.appendChild(script);
 
     return () => {
@@ -36,7 +50,7 @@ const App = () => {
         setSequence((prev) => [...prev, `${i}. ${response.data || "Forbidden"}`]);
       } catch (error) {
         if (error.response && error.response.status === 403) {
-          alert("Captcha détecté. Veuillez le résoudre pour continuer.");
+          setCaptchaVisible(true); // Afficher le captcha
           await handleCaptcha(); // Gérer le Captcha
           i--; // Refaire la requête après résolution du Captcha
         } else {
@@ -54,10 +68,12 @@ const App = () => {
       const captchaId = "b82b1763d1c3"; // ID Captcha fourni par AWS WAF
       const captchaCallback = () => {
         resolve(); // Continuer après résolution du Captcha
+        setCaptchaVisible(false); // Cacher le captcha après résolution
       };
 
       // Vérifiez si le script AWS WAF est chargé
-      if (window && window.AWSWAF) {
+      if (captchaLoaded && window.AWSWAF) {
+        console.log("Rendu du Captcha.");
         window.AWSWAF.render(captchaId, captchaCallback);
       } else {
         console.error("Le script Captcha AWS WAF n'est pas chargé.");
@@ -90,6 +106,14 @@ const App = () => {
               <li key={index}>{line}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Affichage du captcha si détecté */}
+      {captchaVisible && (
+        <div>
+          <h3>Captcha détecté, veuillez résoudre le captcha pour continuer :</h3>
+          <div id="captcha-container"></div>
         </div>
       )}
     </div>
